@@ -42,6 +42,26 @@ class ExtensionFinder:
                     os.path.expanduser("~/Library/Application Support/Code/User/extensions/augment.*/out/extension.js"),
                 ]
             },
+            IDEType.VSCODE_INSIDERS: {
+                "windows": [
+                    os.path.expanduser("~/.vscode-insiders/extensions/augment.vscode-augment-*/out/extension.js"),
+                    os.path.expanduser("~/AppData/Roaming/Code - Insiders/User/extensions/augment.vscode-augment-*/out/extension.js"),
+                    os.path.expanduser("~/.vscode-insiders/extensions/augment.*/out/extension.js"),
+                    os.path.expanduser("~/AppData/Roaming/Code - Insiders/User/extensions/augment.*/out/extension.js"),
+                ],
+                "linux": [
+                    os.path.expanduser("~/.vscode-insiders/extensions/augment.vscode-augment-*/out/extension.js"),
+                    os.path.expanduser("~/.config/Code - Insiders/User/extensions/augment.vscode-augment-*/out/extension.js"),
+                    os.path.expanduser("~/.vscode-insiders/extensions/augment.*/out/extension.js"),
+                    os.path.expanduser("~/.config/Code - Insiders/User/extensions/augment.*/out/extension.js"),
+                ],
+                "darwin": [
+                    os.path.expanduser("~/.vscode-insiders/extensions/augment.vscode-augment-*/out/extension.js"),
+                    os.path.expanduser("~/Library/Application Support/Code - Insiders/User/extensions/augment.vscode-augment-*/out/extension.js"),
+                    os.path.expanduser("~/.vscode-insiders/extensions/augment.*/out/extension.js"),
+                    os.path.expanduser("~/Library/Application Support/Code - Insiders/User/extensions/augment.*/out/extension.js"),
+                ]
+            },
             IDEType.CURSOR: {
                 "windows": [
                     # cursor 可能使用 vscode-augment 扩展名称
@@ -157,6 +177,7 @@ class ExtensionFinder:
                 file_lower = file.lower()
                 if (ide_type == IDEType.CURSOR and ("cursor" in file_lower or "vscode" in file_lower)) or \
                    (ide_type == IDEType.VSCODE and "vscode" in file_lower) or \
+                   (ide_type == IDEType.VSCODE_INSIDERS and ("vscode" in file_lower or "insiders" in file_lower)) or \
                    (ide_type == IDEType.WINDSURF and "windsurf" in file_lower):
                     ide_keyword_files.append(file)
 
@@ -308,7 +329,7 @@ class ExtensionFinder:
         """查找所有支持的IDE的扩展文件"""
         results = {}
         
-        for ide_type in [IDEType.VSCODE, IDEType.CURSOR, IDEType.WINDSURF]:
+        for ide_type in [IDEType.VSCODE, IDEType.VSCODE_INSIDERS, IDEType.CURSOR, IDEType.WINDSURF]:
             portable_root = None
             if portable_roots and ide_type in portable_roots:
                 portable_root = portable_roots[ide_type]

@@ -2,13 +2,14 @@
 文件清理模块 - 安全删除和强制删除功能
 基于clean.js的文件删除功能，适配Python环境
 """
+import json
 import os
 import shutil
 import subprocess
 import time
 from pathlib import Path
 from typing import List, Optional, Dict
-from .common_utils import IDEType, get_ide_paths, print_info, print_success, print_warning, print_error
+from .common_utils import IDEType, get_ide_paths, print_info, print_success, print_warning, print_error, create_backup
 from .process_manager import ProcessManager
 
 class FileCleaner:
@@ -36,11 +37,13 @@ class FileCleaner:
         paths = get_ide_paths(ide_type)
         if not paths:
             print_error(f"无法获取 {ide_type.value} 路径")
-            return {"globalStorage": 0, "workspaceStorage": 0}
+            return {"globalStorage": 0, "workspaceStorage": 0, "history": 0, "profile": 0}
         
         results = {
             "globalStorage": 0,
-            "workspaceStorage": 0
+            "workspaceStorage": 0,
+            "history": 0,
+            "profile": 0
         }
         
         # 清理globalStorage
@@ -54,6 +57,26 @@ class FileCleaner:
             workspace_storage_path = global_storage_path.parent / "workspaceStorage"
             if workspace_storage_path.exists():
                 results["workspaceStorage"] = self._clean_workspace_storage(workspace_storage_path, force_mode)
+        
+        # VS Code Insiders 特殊清理
+        if ide_type == IDEType.VSCODE_INSIDERS:
+            # 清理History文件夹
+            if "history" in paths and paths["history"].exists():
+                results["history"] = self._clean_history_folder(paths["history"], force_mode)
+            
+            # 清理profile目录
+            if "profile_dir" in paths:
+                results["profile"] = self._clean_profile_directory(paths, force_mode)
+        
+        # VS Code Insiders 特殊清理
+        if ide_type == IDEType.VSCODE:
+            # 清理History文件夹
+            if "history" in paths and paths["history"].exists():
+                results["history"] = self._clean_history_folder(paths["history"], force_mode)
+            
+            # 清理profile目录
+            if "profile_dir" in paths:
+                results["profile"] = self._clean_profile_directory(paths, force_mode)
         
         return results
     
@@ -256,3 +279,194 @@ class FileCleaner:
         except Exception as e:
             print_error(f"强制删除失败: {file_path} - {e}")
             return False
+
+    def _clean_history_folder(self, history_path: Path, force_mode: bool) -> int:
+        """
+        清理VS Code Insiders的History文件夹
+        
+        Args:
+            history_path: History文件夹路径
+            force_mode: 是否启用强制模式
+            
+        Returns:
+            int: 删除的项目数量
+        """
+        print_info(f"清理History文件夹: {history_path}")
+        
+        if not history_path.exists():
+            print_warning(f"History文件夹不存在: {history_path}")
+            return 0
+        
+        deleted_count = 0
+        try:
+            # 删除整个History文件夹
+            if force_mode:
+                shutil.rmtree(history_path, ignore_errors=True)
+                print_success(f"已强制删除History文件夹: {history_path}")
+                deleted_count = 1
+            else:
+                try:
+                    shutil.rmtree(history_path)
+                    print_success(f"已删除History文件夹: {history_path}")
+                    deleted_count = 1
+                except Exception as e:
+                    print_warning(f"删除History文件夹失败: {e}")
+                    print_info("可以尝试使用强制模式")
+        except Exception as e:
+            print_error(f"清理History文件夹时发生错误: {e}")
+        
+        return deleted_count
+
+    def _clean_profile_directory(self, paths: Dict[str, Path], force_mode: bool) -> int:
+        """
+        清理VS Code Insiders的profile目录
+        包括备份和清理extensions.json以及删除augment相关扩展
+        
+        Args:
+            paths: 包含profile相关路径的字典
+            force_mode: 是否启用强制模式
+            
+        Returns:
+            int: 删除的项目数量
+        """
+        profile_dir = paths.get("profile_dir")
+        extensions_dir = paths.get("profile_extensions")
+        extensions_json = paths.get("profile_extensions_json")
+        
+        if not profile_dir or not profile_dir.exists():
+            print_warning(f"Profile目录不存在: {profile_dir}")
+            return 0
+        
+        print_info(f"清理Profile目录: {profile_dir}")
+        deleted_count = 0
+        
+        # 1. 备份并清理 extensions.json
+        if extensions_json and extensions_json.exists():
+            deleted_count += self._clean_extensions_json(extensions_json, force_mode)
+        
+        # 2. 清理extensions目录中的augment相关扩展
+        if extensions_dir and extensions_dir.exists():
+            deleted_count += self._clean_profile_extensions(extensions_dir, force_mode)
+        
+        return deleted_count
+
+    def _clean_extensions_json(self, extensions_json_path: Path, force_mode: bool) -> int:
+        """
+        备份并清理extensions.json文件中的augment相关条目
+        
+        Args:
+            extensions_json_path: extensions.json文件路径
+            force_mode: 是否启用强制模式
+            
+        Returns:
+            int: 处理的文件数量
+        """
+        print_info(f"处理extensions.json: {extensions_json_path}")
+        
+        try:
+            # 创建备份
+            backup_path = create_backup(extensions_json_path)
+            if not backup_path:
+                print_error("无法创建extensions.json备份，跳过清理")
+                return 0
+            
+            # 读取JSON文件
+            with open(extensions_json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            original_count = len(data) if isinstance(data, list) else 0
+            
+            # 过滤掉包含augment的条目
+            if isinstance(data, list):
+                filtered_data = []
+                removed_items = []
+                
+                for item in data:
+                    if isinstance(item, dict):
+                        # 检查各种可能的字段
+                        item_str = json.dumps(item, ensure_ascii=False).lower()
+                        if 'augment' in item_str:
+                            removed_items.append(item)
+                        else:
+                            filtered_data.append(item)
+                    else:
+                        # 如果是字符串，直接检查
+                        if 'augment' not in str(item).lower():
+                            filtered_data.append(item)
+                        else:
+                            removed_items.append(item)
+                
+                if removed_items:
+                    print_info(f"从extensions.json中移除了 {len(removed_items)} 个augment相关条目:")
+                    for item in removed_items:
+                        print_info(f"  - {item}")
+                    
+                    # 写回清理后的数据
+                    with open(extensions_json_path, 'w', encoding='utf-8') as f:
+                        json.dump(filtered_data, f, indent=2, ensure_ascii=False)
+                    
+                    print_success(f"extensions.json清理完成，备份位于: {backup_path}")
+                    return 1
+                else:
+                    print_info("extensions.json中未找到augment相关条目")
+                    # 删除不必要的备份
+                    backup_path.unlink()
+                    return 0
+            else:
+                print_warning("extensions.json格式不是预期的数组格式")
+                return 0
+                
+        except json.JSONDecodeError as e:
+            print_error(f"extensions.json格式错误: {e}")
+            return 0
+        except Exception as e:
+            print_error(f"处理extensions.json时发生错误: {e}")
+            return 0
+
+    def _clean_profile_extensions(self, extensions_dir: Path, force_mode: bool) -> int:
+        """
+        清理profile extensions目录中的augment相关扩展
+        
+        Args:
+            extensions_dir: extensions目录路径
+            force_mode: 是否启用强制模式
+            
+        Returns:
+            int: 删除的扩展数量
+        """
+        print_info(f"清理扩展目录: {extensions_dir}")
+        
+        if not extensions_dir.exists():
+            print_warning(f"扩展目录不存在: {extensions_dir}")
+            return 0
+        
+        deleted_count = 0
+        
+        try:
+            for item in extensions_dir.iterdir():
+                if item.is_dir() and 'augment' in item.name.lower():
+                    print_info(f"找到augment扩展: {item.name}")
+                    
+                    try:
+                        if force_mode:
+                            shutil.rmtree(item, ignore_errors=True)
+                            print_success(f"已强制删除扩展: {item.name}")
+                            deleted_count += 1
+                        else:
+                            shutil.rmtree(item)
+                            print_success(f"已删除扩展: {item.name}")
+                            deleted_count += 1
+                    except Exception as e:
+                        print_warning(f"删除扩展失败 {item.name}: {e}")
+                        if not force_mode:
+                            print_info("可以尝试使用强制模式")
+        
+        except Exception as e:
+            print_error(f"遍历扩展目录时发生错误: {e}")
+        
+        if deleted_count > 0:
+            print_success(f"从profile扩展目录删除了 {deleted_count} 个augment扩展")
+        else:
+            print_info("profile扩展目录中未找到augment相关扩展")
+        
+        return deleted_count

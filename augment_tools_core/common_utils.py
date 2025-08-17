@@ -19,6 +19,7 @@ except ImportError:
 class IDEType(Enum):
     """Supported IDE types"""
     VSCODE = "vscode"
+    VSCODE_INSIDERS = "vscode-insiders"
     CURSOR = "cursor"
     WINDSURF = "windsurf"
     JETBRAINS = "jetbrains"
@@ -87,6 +88,32 @@ def get_ide_paths(ide_type: IDEType) -> Optional[Dict[str, Path]]:
 
             paths["state_db"] = base_dir / "globalStorage" / "state.vscdb"
             paths["storage_json"] = base_dir / "globalStorage" / "storage.json"
+
+        elif ide_type == IDEType.VSCODE_INSIDERS:
+            if system == "Windows":
+                appdata = os.environ.get("APPDATA")
+                if not appdata:
+                    print_error("APPDATA environment variable not found. Cannot locate VS Code Insiders data.")
+                    return None
+                base_dir = Path(appdata) / "Code - Insiders" / "User"
+                # Add profile directory for additional cleaning
+                profile_dir = Path.home() / ".vscode-insiders"
+            elif system == "Darwin":  # macOS
+                base_dir = Path.home() / "Library" / "Application Support" / "Code - Insiders" / "User"
+                profile_dir = Path.home() / ".vscode-insiders"
+            elif system == "Linux":
+                base_dir = Path.home() / ".config" / "Code - Insiders" / "User"
+                profile_dir = Path.home() / ".vscode-insiders"
+            else:
+                print_error(f"Unsupported operating system: {system}")
+                return None
+
+            paths["state_db"] = base_dir / "globalStorage" / "state.vscdb"
+            paths["storage_json"] = base_dir / "globalStorage" / "storage.json"
+            paths["history"] = base_dir / "History"  # Add history folder for cleaning
+            paths["profile_dir"] = profile_dir
+            paths["profile_extensions"] = profile_dir / "extensions"
+            paths["profile_extensions_json"] = profile_dir / "extensions.json"
 
         elif ide_type == IDEType.CURSOR:
             if system == "Windows":
@@ -261,6 +288,7 @@ def get_ide_display_name(ide_type: IDEType) -> str:
     """Get display name for IDE type"""
     display_names = {
         IDEType.VSCODE: "VS Code",
+        IDEType.VSCODE_INSIDERS: "VS Code Insiders",
         IDEType.CURSOR: "Cursor",
         IDEType.WINDSURF: "Windsurf",
         IDEType.JETBRAINS: "JetBrains"
@@ -270,7 +298,8 @@ def get_ide_display_name(ide_type: IDEType) -> str:
 def get_ide_process_names(ide_type: IDEType) -> list:
     """Get process names for the specified IDE"""
     process_names = {
-        IDEType.VSCODE: ["Code.exe", "Code - Insiders.exe", "Code - OSS.exe"],
+        IDEType.VSCODE: ["Code.exe", "Code - OSS.exe"],
+        IDEType.VSCODE_INSIDERS: ["Code - Insiders.exe"],
         IDEType.CURSOR: ["Cursor.exe", "cursor.exe"],
         IDEType.WINDSURF: ["Windsurf.exe", "windsurf.exe"],
         IDEType.JETBRAINS: [
@@ -505,7 +534,8 @@ def get_ide_process_names(ide_type: IDEType) -> list[str]:
         list[str]: 进程名称列表
     """
     process_names = {
-        IDEType.VSCODE: ['Code.exe', 'Code - Insiders.exe', 'Code - OSS.exe'],
+        IDEType.VSCODE: ['Code.exe', 'Code - OSS.exe'],
+        IDEType.VSCODE_INSIDERS: ['Code - Insiders.exe'],
         IDEType.CURSOR: ['Cursor.exe', 'cursor.exe'],
         IDEType.WINDSURF: ['Windsurf.exe', 'windsurf.exe'],
         IDEType.JETBRAINS: [
@@ -521,6 +551,7 @@ def get_ide_extension_name(ide_type: IDEType) -> str:
     """Get the extension name pattern for the specified IDE"""
     extension_names = {
         IDEType.VSCODE: "augment.vscode-augment",
+        IDEType.VSCODE_INSIDERS: "augment.vscode-augment",
         IDEType.CURSOR: "augment.cursor-augment",
         IDEType.WINDSURF: "augment.windsurf-augment",
         IDEType.JETBRAINS: "augment.jetbrains-augment"
@@ -532,6 +563,7 @@ def get_patch_target_description(ide_type: IDEType) -> str:
     """Get description of what will be patched for the IDE"""
     descriptions = {
         IDEType.VSCODE: "VS Code AugmentCode 扩展文件",
+        IDEType.VSCODE_INSIDERS: "VS Code Insiders AugmentCode 扩展文件",
         IDEType.CURSOR: "Cursor AugmentCode 扩展文件",
         IDEType.WINDSURF: "Windsurf AugmentCode 扩展文件",
         IDEType.JETBRAINS: "JetBrains AugmentCode 插件文件"

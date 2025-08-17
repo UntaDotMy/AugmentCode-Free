@@ -36,6 +36,8 @@ def parse_ide_type(ide_name: str) -> IDEType:
     ide_name_lower = ide_name.lower()
     if ide_name_lower in ['vscode', 'vs-code', 'code']:
         return IDEType.VSCODE
+    elif ide_name_lower in ['vscode-insiders', 'vs-code-insiders', 'code-insiders', 'insiders']:
+        return IDEType.VSCODE_INSIDERS
     elif ide_name_lower in ['cursor']:
         return IDEType.CURSOR
     elif ide_name_lower in ['windsurf']:

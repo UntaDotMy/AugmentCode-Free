@@ -30,7 +30,10 @@ class ProcessManager:
     # IDE进程名称映射
     IDE_PROCESS_NAMES = {
         IDEType.VSCODE: [
-            'Code.exe', 'Code - Insiders.exe', 'Code - OSS.exe', 'VSCode.exe'
+            'Code.exe', 'Code - OSS.exe', 'VSCode.exe'
+        ],
+        IDEType.VSCODE_INSIDERS: [
+            'Code - Insiders.exe'
         ],
         IDEType.CURSOR: [
             'Cursor.exe', 'cursor.exe'
@@ -79,7 +82,7 @@ class ProcessManager:
             all_processes.extend(processes)
         
         # 额外查找基于命令行的进程（适用于Electron应用）
-        if ide_type in [IDEType.VSCODE, IDEType.CURSOR]:
+        if ide_type in [IDEType.VSCODE, IDEType.VSCODE_INSIDERS, IDEType.CURSOR]:
             electron_processes = self._get_electron_processes(ide_type)
             all_processes.extend(electron_processes)
         
@@ -146,6 +149,7 @@ class ProcessManager:
             # 根据IDE类型确定搜索关键字
             search_keywords = {
                 IDEType.VSCODE: ['Code', 'vscode'],
+                IDEType.VSCODE_INSIDERS: ['Code - Insiders', 'vscode-insiders', 'insiders'],
                 IDEType.CURSOR: ['Cursor', 'cursor']
             }
             

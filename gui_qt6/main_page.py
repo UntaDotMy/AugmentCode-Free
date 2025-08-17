@@ -140,13 +140,13 @@ class MainPage(QWidget):
         # IDE下拉框 - 适当调整宽度
         self.ide_combo = QComboBox()
         self.ide_combo.setFont(get_default_font(10))
-        self.ide_combo.addItems(["VS Code", "Cursor", "Windsurf", "JetBrains"])
+        self.ide_combo.addItems(["VS Code", "VS Code Insiders", "Cursor", "Windsurf", "JetBrains"])
         self.ide_combo.setMaximumWidth(160)  # 稍微增加宽度
         self.ide_combo.setMinimumWidth(140)
 
         # 设置上次选择的IDE
         last_ide = self.config_manager.get_last_selected_ide()
-        if last_ide in ["VS Code", "Cursor", "Windsurf", "JetBrains"]:
+        if last_ide in ["VS Code", "VS Code Insiders", "Cursor", "Windsurf", "JetBrains"]:
             self.ide_combo.setCurrentText(last_ide)
 
         ide_layout.addWidget(self.ide_combo)
@@ -453,6 +453,8 @@ class MainPage(QWidget):
         ide_name = self.ide_combo.currentText()
         if ide_name == "VS Code":
             return IDEType.VSCODE
+        elif ide_name == "VS Code Insiders":
+            return IDEType.VSCODE_INSIDERS
         elif ide_name == "Cursor":
             return IDEType.CURSOR
         elif ide_name == "Windsurf":
@@ -629,6 +631,7 @@ class MainPage(QWidget):
         ide_text = self.ide_combo.currentText()
         ide_mapping = {
             "VS Code": IDEType.VSCODE,
+            "VS Code Insiders": IDEType.VSCODE_INSIDERS,
             "Cursor": IDEType.CURSOR,
             "Windsurf": IDEType.WINDSURF,
             "JetBrains": IDEType.JETBRAINS

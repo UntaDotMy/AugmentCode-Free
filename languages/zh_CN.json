@@ -11,7 +11,7 @@
     "operation_log": "操作日志:",
     "description": "AugmentCode-Free 是一个开源免费的IDE维护工具。",
     "supported_ides": "支持的IDE:",
-    "ide_list": "• VS Code\n• Cursor\n• Windsurf",
+    "ide_list": "• VS Code\n• VS Code Insiders\n• Cursor\n• Windsurf",
     "main_features": "主要功能:",
     "feature_list": "• 清理IDE数据库\n• 修改遥测ID\n• 一键修改所有配置",
     "opensource_notice": "本项目完全开源免费！",
